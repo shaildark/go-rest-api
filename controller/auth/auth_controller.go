@@ -1,14 +1,12 @@
 package auth
 
 import (
-	"fmt"
-
 	"example.com/go-api/db"
 	"example.com/go-api/models"
 	"example.com/go-api/request"
 	"example.com/go-api/response"
+	"example.com/go-api/utility/jwt"
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 func RegisterUser(context *gin.Context) {
@@ -23,42 +21,72 @@ func RegisterUser(context *gin.Context) {
 	database, err := db.Connection()
 
 	if err != nil {
-		msg := "Failed to connect to database"
-		context.JSON(500, response.APIResponse(500, "Something went wrong", msg, nil, nil))
+		context.JSON(500, response.APIResponse(500, "Something went wrong", "Failed to connect to database", nil, nil))
 		return
 	}
 
-	fmt.Println(loginReq.Email)
-	fmt.Println(loginReq.Password)
-
-	var user models.User
-	fmt.Println(user.Email)
-	result := database.Where("email = ?", loginReq.Email).First(&user)
-
-	if result.Error != nil {
-		context.JSON(400, response.APIResponse(400, "", result.Error, nil, nil))
+	var existingUser models.User
+	database.Where("email = ?", loginReq.Email).First(&existingUser)
+	if existingUser.Email != "" {
+		context.JSON(400, response.APIResponse(400, "", "Email Already Exist", nil, nil))
 		return
 	}
 
-	if user.Email == "" {
-		context.JSON(400, response.APIResponse(400, "", "Email already exists", nil, nil))
+	newUser := models.User{
+		Email:    loginReq.Email,
+		Password: loginReq.Password,
+	}
+	newUser.SetPassword()
+
+	userResult := newUser.Create()
+	if userResult != nil {
+		context.JSON(400, response.APIResponse(400, "Something went wrong.", userResult, nil, nil))
 		return
 	}
 
-	fmt.Println(user.Email)
-	if result.Error != gorm.ErrRecordNotFound {
-		context.JSON(400, response.APIResponse(400, "", "Email already exists", nil, nil))
-		return
-	}
-
-	data := response.APIResponse(200, "success", nil, nil, nil)
-	context.JSON(200, data)
+	context.JSON(200, response.APIResponse(200, "User created successfully", nil, nil, nil))
 	return
 }
 
 func LoginUser(context *gin.Context) {
-	data := response.APIResponse(200, "success", nil, nil, nil)
-	context.JSON(200, data)
+	var loginReq request.LoginRequest
+
+	if err := context.ShouldBindJSON(&loginReq); err != nil {
+		msg := request.ValidationErrorResponse(err)
+		context.JSON(400, response.APIResponse(400, "Something went wrong", msg, nil, nil))
+		return
+	}
+
+	database, err := db.Connection()
+
+	if err != nil {
+		context.JSON(500, response.APIResponse(500, "Something went wrong", "Failed to connect to database", nil, nil))
+		return
+	}
+
+	var user models.User
+	database.Where("email = ?", loginReq.Email).First(&user)
+
+	if user.Email == "" {
+		context.JSON(400, response.APIResponse(400, "", "Email not found", nil, nil))
+		return
+	}
+
+	passwordCheck := user.CheckPassword(loginReq.Password)
+
+	if !passwordCheck {
+		context.JSON(400, response.APIResponse(400, "", "Invalid Password", nil, nil))
+		return
+	}
+
+	token, err := jwt.GenerateToken(user.Email, int64(user.ID))
+
+	if err != nil {
+		context.JSON(500, response.APIResponse(500, "Something went wrong", "Failed to generate token", nil, nil))
+		return
+	}
+
+	context.JSON(200, response.APIResponse(200, "Login successful", map[string]string{"token": token}, nil, nil))
 	return
 }
 

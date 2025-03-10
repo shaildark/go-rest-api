@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"example.com/go-api/db"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -51,4 +52,21 @@ func (u *User) Create() error {
 	}
 
 	return nil
+}
+
+func (u *User) SetPassword() {
+	// bcrypt.DefaultCost is 10
+	pw, err := bcrypt.GenerateFromPassword([]byte(u.Password), 12)
+
+	if err == nil {
+		u.Password = string(pw)
+	}
+}
+
+func (u *User) CheckPassword(password string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(password))
+	if err != nil {
+		return false
+	}
+	return true
 }
