@@ -1,5 +1,11 @@
 # go-rest-api
 
+Install Packages
+
+```
+go mod tidy
+```
+
 Run Project
 ```
 go run main.go
