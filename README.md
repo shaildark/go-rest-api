@@ -3,13 +3,17 @@
 Install Packages
 
 ```
+go get github.com/99designs/gqlgen
+
 go mod tidy
 ```
 
 Run Project
+
 ```
 go run main.go
 ```
+
 <br>
 
 Since the main branch exists on the remote repository but not locally, you need to create it and switch to it:
@@ -18,6 +22,7 @@ Since the main branch exists on the remote repository but not locally, you need 
 git fetch origin
 git checkout -b main origin/main
 ```
+
 <br>
 Set Upstream Tracking for main
 If the main branch is not already tracking origin/main, set it up explicitly:
@@ -31,4 +36,14 @@ Alternatively, you can use the -u flag with git push to set the upstream branch:
 
 ```
 git push -u origin main
+```
+
+GraphQL Commands
+
+```
+initialize
+go run github.com/99designs/gqlgen init
+
+generate
+go run github.com/99designs/gqlgen generate
 ```
